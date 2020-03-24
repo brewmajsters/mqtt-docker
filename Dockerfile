@@ -1,4 +1,4 @@
-FROM alpine:3.11.2
+FROM alpine:latest
 
 # Build-time metadata as defined at http://label-schema.org
 ARG BUILD_DATE
@@ -19,46 +19,26 @@ RUN addgroup -S mosquitto && \
     adduser -S -H -h /var/empty -s /sbin/nologin -D -G mosquitto mosquitto
 
 ENV PATH=/usr/local/bin:/usr/local/sbin:$PATH
-ENV MOSQUITTO_VERSION=v.1.6.8
-#ENV LIBWEBSOCKETS_VERSION=v3.2.1
-ENV LIBWEBSOCKETS_VERSION=v2.4.2
+ENV MOSQUITTO_VERSION=master
 
-COPY run.sh /
+COPY docker-entrypoint.sh /
 
 RUN apk --no-cache add --virtual buildDeps git cmake build-base openssl-dev c-ares-dev util-linux-dev hiredis-dev postgresql-dev curl-dev; \
-    chmod +x /run.sh && \
+    chmod +x /docker-entrypoint.sh && \
     mkdir -p /var/lib/mosquitto && \
     touch /var/lib/mosquitto/.keep && \
     mkdir -p /etc/mosquitto.d && \
     apk add hiredis postgresql-libs libuuid c-ares openssl curl ca-certificates && \
-    git clone -b ${LIBWEBSOCKETS_VERSION} https://github.com/warmcat/libwebsockets && \
-    cd libwebsockets && \
-    cmake . \
-      -DCMAKE_BUILD_TYPE=MinSizeRel \
-      -DLWS_IPV6=ON \
-      -DLWS_WITHOUT_CLIENT=ON \
-      -DLWS_WITHOUT_TESTAPPS=ON \
-      -DLWS_WITHOUT_EXTENSIONS=ON \
-      -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
-      -DLWS_WITH_ZIP_FOPS=OFF \
-      -DLWS_WITH_ZLIB=OFF \
-      -DLWS_WITH_SHARED=OFF && \
-    make -j "$(nproc)" && \
-    rm -rf /root/.cmake && \
-    cd .. && \
     git clone -b ${MOSQUITTO_VERSION} https://github.com/eclipse/mosquitto.git && \
     cd mosquitto && \
     make -j "$(nproc)" \
-      CFLAGS="-Wall -O2 -I/libwebsockets/include" \
-      LDFLAGS="-L/libwebsockets/lib" \
       WITH_SRV=yes \
       WITH_STRIP=yes \
       WITH_ADNS=no \
       WITH_DOCS=no \
       WITH_MEMORY_TRACKING=no \
       WITH_TLS_PSK=no \
-      WITH_WEBSOCKETS=yes \
-    binary && \
+      binary && \
     install -s -m755 client/mosquitto_pub /usr/bin/mosquitto_pub && \
     install -s -m755 client/mosquitto_rr /usr/bin/mosquitto_rr && \
     install -s -m755 client/mosquitto_sub /usr/bin/mosquitto_sub && \
@@ -85,17 +65,14 @@ RUN apk --no-cache add --virtual buildDeps git cmake build-base openssl-dev c-ar
     install -s -m755 auth-plug.so /usr/lib/ && \
     install -s -m755 np /usr/bin/ && \
     cd / && rm -rf mosquitto && \
-    rm -rf libwebsockets && \
     apk del buildDeps && rm -rf /var/cache/apk/*
 
 ADD mosquitto.conf /etc/mosquitto/mosquitto.conf
 
 # MQTT default port and default port over TLS
 EXPOSE 1883 8883
-# MQTT over websocket default port and default port over TLS
-EXPOSE 9001 9002
 
 VOLUME ["/var/lib/mosquitto", "/etc/mosquitto", "/etc/mosquitto.d"]
 
-ENTRYPOINT ["/run.sh"]
-CMD ["mosquitto"]
+# ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["/docker-entrypoint.sh"]
