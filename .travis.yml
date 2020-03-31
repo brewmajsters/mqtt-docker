@@ -1,0 +1,15 @@
+---
+
+dist: bionic
+
+services:
+  - docker
+
+before_install:
+  - sudo apt update && sudo apt install -y netcat
+  - docker build -t mqtt .
+  - docker run -d --name mqtt -p 1883:1883 -p 8883:8883 mqtt
+
+script:
+  - nc -zv localhost 1883 ; [[ $? == 0 ]] || exit 1
+  - nc -zv localhost 8883 ; [[ $? == 0 ]] || exit 1
