@@ -177,3 +177,10 @@ And now everything *should* work! ;)
 ## Contributors
 
 - See [contributors page](https://github.com/jllopis/docker-mosquitto/graphs/contributors) for a list of contributors.
+
+
+## Brewmasters setup
+
+build the image: `sudo docker build -t mqtt .`
+
+run the image: `sudo docker run -d --name brewmasters-mqtt -p 888:8883 -p 1883:1883 mqtt`
