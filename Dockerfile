@@ -1,20 +1,5 @@
 FROM alpine:latest
 
-# Build-time metadata as defined at http://label-schema.org
-ARG BUILD_DATE
-ARG VCS_REF
-ARG VERSION
-LABEL maintainer="Joan Llopis <jllopisg@gmail.com>" \
-      org.label-schema.build-date=$BUILD_DATE \
-      org.label-schema.name="mosquitto MQTT Brocker with auth-plugin" \
-      org.label-schema.description="This project builds mosquitto with auth-plugin. \
-      It also has mosquitto_pub, mosquitto_sub and np." \
-      org.label-schema.url="https://cloud.docker.com/u/jllopis/repository/docker/jllopis/mosquitto" \
-      org.label-schema.vcs-ref=$VCS_REF \
-      org.label-schema.vcs-url="https://github.com/jllopis/docker-mosquitto" \
-      org.label-schema.version=$VERSION \
-      org.label-schema.schema-version="1.0"
-
 RUN addgroup -S mosquitto && \
     adduser -S -H -h /var/empty -s /sbin/nologin -D -G mosquitto mosquitto
 
@@ -23,12 +8,12 @@ ENV MOSQUITTO_VERSION=master
 
 COPY docker-entrypoint.sh /
 
-RUN apk --no-cache add --virtual buildDeps git cmake build-base openssl-dev c-ares-dev util-linux-dev hiredis-dev postgresql-dev curl-dev; \
+RUN apk --no-cache add --virtual buildDeps git cmake build-base openssl-dev c-ares-dev util-linux-dev; \
     chmod +x /docker-entrypoint.sh && \
     mkdir -p /var/lib/mosquitto && \
     touch /var/lib/mosquitto/.keep && \
     mkdir -p /etc/mosquitto.d && \
-    apk add hiredis postgresql-libs libuuid c-ares openssl curl ca-certificates && \
+    apk add libuuid c-ares openssl ca-certificates && \
     git clone -b ${MOSQUITTO_VERSION} https://github.com/eclipse/mosquitto.git && \
     cd mosquitto && \
     make -j "$(nproc)" \
@@ -46,24 +31,6 @@ RUN apk --no-cache add --virtual buildDeps git cmake build-base openssl-dev c-ar
     ln -sf /usr/lib/libmosquitto.so.1 /usr/lib/libmosquitto.so && \
     install -s -m755 src/mosquitto /usr/sbin/mosquitto && \
     install -s -m755 src/mosquitto_passwd /usr/bin/mosquitto_passwd && \
-    git clone https://github.com/vankxr/mosquitto-auth-plug && \
-    cd mosquitto-auth-plug && \
-    cp config.mk.in config.mk && \
-    sed -i "s/BACKEND_CDB ?= no/BACKEND_CDB ?= no/" config.mk && \
-    sed -i "s/BACKEND_MYSQL ?= yes/BACKEND_MYSQL ?= no/" config.mk && \
-    sed -i "s/BACKEND_SQLITE ?= no/BACKEND_SQLITE ?= no/" config.mk && \
-    sed -i "s/BACKEND_REDIS ?= no/BACKEND_REDIS ?= yes/" config.mk && \
-    sed -i "s/BACKEND_POSTGRES ?= no/BACKEND_POSTGRES ?= yes/" config.mk && \
-    sed -i "s/BACKEND_LDAP ?= no/BACKEND_LDAP ?= no/" config.mk && \
-    sed -i "s/BACKEND_HTTP ?= no/BACKEND_HTTP ?= yes/" config.mk && \
-    sed -i "s/BACKEND_JWT ?= no/BACKEND_JWT ?= no/" config.mk && \
-    sed -i "s/BACKEND_MONGO ?= no/BACKEND_MONGO ?= no/" config.mk && \
-    sed -i "s/BACKEND_FILES ?= no/BACKEND_FILES ?= no/" config.mk && \
-    sed -i "s/BACKEND_MEMCACHED ?= no/BACKEND_MEMCACHED ?= no/" config.mk && \
-    sed -i "s/MOSQUITTO_SRC =/MOSQUITTO_SRC = ..\//" config.mk && \
-    make -j "$(nproc)" && \
-    install -s -m755 auth-plug.so /usr/lib/ && \
-    install -s -m755 np /usr/bin/ && \
     cd / && rm -rf mosquitto && \
     apk del buildDeps && rm -rf /var/cache/apk/*
 
@@ -72,7 +39,6 @@ ADD mosquitto.conf /etc/mosquitto/mosquitto.conf
 # MQTT default port and default port over TLS
 EXPOSE 1883 8883
 
-VOLUME ["/var/lib/mosquitto", "/etc/mosquitto", "/etc/mosquitto.d"]
+# VOLUME ["/var/lib/mosquitto", "/etc/mosquitto", "/etc/mosquitto.d"]
 
-# ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
